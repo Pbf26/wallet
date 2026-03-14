@@ -51,6 +51,14 @@ export interface Investment {
   monthly_contribution: number | null
 }
 
+// partial_amount: set when paid partially, cleared when fully paid
+export interface MonthlyLogEntry {
+  paid: boolean
+  partial_amount?: number
+  bank?: string
+  payment_method?: string
+}
+
 export interface Profile {
   id?: string
   user_id?: string
@@ -61,7 +69,7 @@ export interface Profile {
   fixed_expenses: FixedExpense[]
   debts: Debt[]
   investments: Investment[]
-  monthly_log: Record<string, Record<string, boolean>>
+  monthly_log: Record<string, Record<string, MonthlyLogEntry | boolean>>
   created_at?: string
 }
 
