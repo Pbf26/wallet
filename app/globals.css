@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+#__next {
+  height: 100%;
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.scrollable {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Chat bubbles */
+.bubble-user {
+  background: #000;
+  color: #fff;
+  border-radius: 18px 18px 4px 18px;
+}
+
+.bubble-ai {
+  background: #f3f4f6;
+  color: #111;
+  border-radius: 18px 18px 18px 4px;
+}
+
+.bubble-err {
+  background: #fee2e2;
+  color: #991b1b;
+  border-radius: 18px 18px 18px 4px;
+}
