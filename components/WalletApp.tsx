@@ -18,7 +18,7 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
 ]
 
 export default function WalletApp({ userId }: Props) {
-  const [tab, setTab] = useState<Tab>('dashboard')
+  const [tab, setTab] = useState<Tab>('register')
   const [profile, setProfile] = useState<Profile | null>(null)
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [goals, setGoals] = useState<Goal[]>([])

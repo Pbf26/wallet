@@ -16,6 +16,8 @@ interface Props {
 
 export default function Dashboard({ profile, transactions, goals, onSignOut, onUpdateTransaction, onDeleteTransaction }: Props) {
   const [editTxn, setEditTxn] = useState<Transaction | null>(null)
+  const [hidden, setHidden] = useState(false)
+
   const mk = new Date().toISOString().substring(0, 7)
   const monthTxns = transactions.filter(t => t.date.startsWith(mk))
   const income = monthTxns.filter(t => t.type === 'income' && t.category !== 'Balance inicial').reduce((s, t) => s + t.amount, 0)
@@ -43,39 +45,59 @@ export default function Dashboard({ profile, transactions, goals, onSignOut, onU
     }
   }
 
+  // masked value — shows color dot + **** instead of number
+  const M = (val: number, cls?: string) => hidden
+    ? <span style={{ letterSpacing: 2, color: val >= 0 ? '#16a34a' : '#dc2626', fontSize: 13 }}>••••</span>
+    : <span className={cls} style={{ color: val >= 0 ? (cls ? undefined : '#1a1a1a') : '#dc2626' }}>{fmt(val)}</span>
+
+  const Mc = (val: number, positiveColor: string, negativeColor: string, size: number) => hidden
+    ? <span style={{ letterSpacing: 2, color: val >= 0 ? positiveColor : negativeColor, fontSize: size * 0.7 }}>••••</span>
+    : <span style={{ fontSize: size, fontWeight: 700, color: val >= 0 ? positiveColor : negativeColor }}>{fmt(val)}</span>
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#f0f0ed' }}>
       {editTxn && (
         <EditTransactionModal txn={editTxn} profile={profile}
-          onSave={async (t) => { await onUpdateTransaction(t); setEditTxn(null) }}
-          onDelete={async (id) => { await onDeleteTransaction(id); setEditTxn(null) }}
+          onSave={async t => { await onUpdateTransaction(t); setEditTxn(null) }}
+          onDelete={async id => { await onDeleteTransaction(id); setEditTxn(null) }}
           onClose={() => setEditTxn(null)} />
       )}
 
+      {/* Header */}
       <div style={{ padding: '20px 16px 12px', background: '#fff', borderBottom: '1px solid #e2e2de', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ fontSize: 17, fontWeight: 600 }}>Resumen</div>
-        <button onClick={onSignOut} style={{ fontSize: 12, color: '#aaa', background: 'none', border: 'none', cursor: 'pointer' }}>Salir</button>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          {/* Eye toggle */}
+          <button onClick={() => setHidden(h => !h)}
+            title={hidden ? 'Mostrar montos' : 'Ocultar montos'}
+            style={{ background: hidden ? '#f0f0ed' : 'none', border: hidden ? '1.5px solid #e2e2de' : 'none', borderRadius: 8, padding: '4px 8px', cursor: 'pointer', fontSize: 16, lineHeight: 1, color: hidden ? '#888' : '#bbb' }}>
+            {hidden ? '🙈' : '👁'}
+          </button>
+          <button onClick={onSignOut} style={{ fontSize: 12, color: '#aaa', background: 'none', border: 'none', cursor: 'pointer' }}>Salir</button>
+        </div>
       </div>
 
       <div className="flex-1 scrollable" style={{ padding: '14px 16px' }}>
 
         {/* Patrimony */}
-        <PatrimonyWidget profile={profile} transactions={transactions} />
+        {!hidden && <PatrimonyWidget profile={profile} transactions={transactions} />}
 
         {/* Balance trio */}
         <div className="card" style={{ marginBottom: 12 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 0 }}>
             <div style={{ textAlign: 'center', padding: '10px 6px' }}>
-              <div style={{ fontSize: 10, color: '#888', marginBottom: 4, fontWeight: 500 }}>EN CASH</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: totalCash >= 0 ? '#16a34a' : '#dc2626' }}>{fmt(totalCash)}</div>
+              <div style={{ fontSize: 10, color: '#888', marginBottom: 5, fontWeight: 500 }}>EN CASH</div>
+              {Mc(totalCash, '#16a34a', '#dc2626', 14)}
             </div>
             <div style={{ textAlign: 'center', padding: '10px 6px', borderLeft: '1px solid #e2e2de', borderRight: '1px solid #e2e2de' }}>
-              <div style={{ fontSize: 10, color: '#888', marginBottom: 4, fontWeight: 500 }}>DEBES</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: totalOwed > 0 ? '#dc2626' : '#888' }}>{fmt(totalOwed)}</div>
+              <div style={{ fontSize: 10, color: '#888', marginBottom: 5, fontWeight: 500 }}>DEBES</div>
+              {hidden
+                ? <span style={{ letterSpacing: 2, color: '#dc2626', fontSize: 10 }}>••••</span>
+                : <span style={{ fontSize: 14, fontWeight: 700, color: totalOwed > 0 ? '#dc2626' : '#888' }}>{fmt(totalOwed)}</span>}
             </div>
             <div style={{ textAlign: 'center', padding: '10px 6px' }}>
-              <div style={{ fontSize: 10, color: '#888', marginBottom: 4, fontWeight: 500 }}>NETO</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: netBalance >= 0 ? '#1a1a1a' : '#dc2626' }}>{fmt(netBalance)}</div>
+              <div style={{ fontSize: 10, color: '#888', marginBottom: 5, fontWeight: 500 }}>NETO</div>
+              {Mc(netBalance, '#1a1a1a', '#dc2626', 14)}
             </div>
           </div>
         </div>
@@ -89,22 +111,26 @@ export default function Dashboard({ profile, transactions, goals, onSignOut, onU
               return (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 8, marginBottom: 8, borderBottom: i < profile.bank_accounts.length - 1 ? '1px solid #f0f0ed' : 'none' }}>
                   <div><div style={{ fontSize: 13, fontWeight: 500 }}>{acc.bank}</div><div style={{ fontSize: 11, color: '#aaa', marginTop: 1 }}>{acc.account_type}</div></div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: bal >= 0 ? '#16a34a' : '#dc2626' }}>{fmt(bal)}</div>
+                  {hidden
+                    ? <span style={{ letterSpacing: 2, color: bal >= 0 ? '#16a34a' : '#dc2626', fontSize: 13 }}>••••</span>
+                    : <div style={{ fontSize: 14, fontWeight: 700, color: bal >= 0 ? '#16a34a' : '#dc2626' }}>{fmt(bal)}</div>}
                 </div>
               )
             })}
           </div>
         )}
 
-        {/* Month */}
+        {/* Month cards */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
           <div className="card" style={{ margin: 0, padding: 14 }}>
             <div style={{ fontSize: 10, color: '#16a34a', fontWeight: 500, marginBottom: 4 }}>INGRESOS DEL MES</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: '#16a34a' }}>{fmt(income)}</div>
+            {Mc(income, '#16a34a', '#dc2626', 18)}
           </div>
           <div className="card" style={{ margin: 0, padding: 14 }}>
             <div style={{ fontSize: 10, color: '#dc2626', fontWeight: 500, marginBottom: 4 }}>GASTOS DEL MES</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: '#dc2626' }}>{fmt(expense)}</div>
+            {hidden
+              ? <span style={{ letterSpacing: 2, color: '#dc2626', fontSize: 13 }}>••••</span>
+              : <div style={{ fontSize: 18, fontWeight: 700, color: '#dc2626' }}>{fmt(expense)}</div>}
           </div>
         </div>
 
@@ -116,7 +142,7 @@ export default function Dashboard({ profile, transactions, goals, onSignOut, onU
               <div style={{ marginBottom: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 5 }}>
                   <span style={{ color: '#555' }}>Ingresos recibidos</span>
-                  <span style={{ color: '#16a34a', fontWeight: 600 }}>{fmt(fIncDone)} / {fmt(fInc)}</span>
+                  {hidden ? <span style={{ color: '#16a34a', letterSpacing: 2 }}>••••</span> : <span style={{ color: '#16a34a', fontWeight: 600 }}>{fmt(fIncDone)} / {fmt(fInc)}</span>}
                 </div>
                 <div style={{ height: 6, background: '#e2e2de', borderRadius: 4, overflow: 'hidden' }}>
                   <div style={{ height: '100%', background: '#16a34a', borderRadius: 4, width: Math.round(fIncDone / fInc * 100) + '%' }} />
@@ -127,7 +153,7 @@ export default function Dashboard({ profile, transactions, goals, onSignOut, onU
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 5 }}>
                   <span style={{ color: '#555' }}>Gastos pagados</span>
-                  <span style={{ color: '#dc2626', fontWeight: 600 }}>{fmt(fExpDone)} / {fmt(fExp)}</span>
+                  {hidden ? <span style={{ color: '#dc2626', letterSpacing: 2 }}>••••</span> : <span style={{ color: '#dc2626', fontWeight: 600 }}>{fmt(fExpDone)} / {fmt(fExp)}</span>}
                 </div>
                 <div style={{ height: 6, background: '#e2e2de', borderRadius: 4, overflow: 'hidden' }}>
                   <div style={{ height: '100%', background: '#dc2626', borderRadius: 4, width: Math.round(fExpDone / fExp * 100) + '%' }} />
@@ -146,19 +172,20 @@ export default function Dashboard({ profile, transactions, goals, onSignOut, onU
               return (
                 <div key={g.id} style={{ marginBottom: 12 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 5 }}>
-                    <span style={{ fontWeight: 500 }}>{g.name}</span><span style={{ color: '#888' }}>{pct}%</span>
+                    <span style={{ fontWeight: 500 }}>{g.name}</span>
+                    <span style={{ color: '#888' }}>{pct}%</span>
                   </div>
                   <div style={{ height: 6, background: '#e2e2de', borderRadius: 4, overflow: 'hidden' }}>
                     <div style={{ height: '100%', borderRadius: 4, background: pct >= 100 ? '#16a34a' : '#1a1a1a', width: pct + '%' }} />
                   </div>
-                  <div style={{ fontSize: 11, color: '#aaa', marginTop: 3 }}>{fmt(g.current)} de {fmt(g.target)}</div>
+                  {!hidden && <div style={{ fontSize: 11, color: '#aaa', marginTop: 3 }}>{fmt(g.current)} de {fmt(g.target)}</div>}
                 </div>
               )
             })}
           </div>
         )}
 
-        {/* Recent — tappable */}
+        {/* Recent */}
         <div style={{ fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Movimientos · toca para editar</div>
         {recent.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '2rem', fontSize: 13, color: '#aaa' }}>Sin transacciones aún</div>
@@ -167,7 +194,8 @@ export default function Dashboard({ profile, transactions, goals, onSignOut, onU
             {recent.map((t, i) => {
               const col = cc(t.category)
               return (
-                <button key={t.id} onClick={() => setEditTxn(t)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderBottom: i < recent.length - 1 ? '1px solid #f0f0ed' : 'none', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
+                <button key={t.id} onClick={() => setEditTxn(t)}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderBottom: i < recent.length - 1 ? '1px solid #f0f0ed' : 'none', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
                   <div style={{ width: 34, height: 34, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0, background: col + '22', color: col }}>
                     {t.category[0]}
                   </div>
@@ -178,7 +206,7 @@ export default function Dashboard({ profile, transactions, goals, onSignOut, onU
                     </div>
                   </div>
                   <div style={{ fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap', color: t.type === 'income' ? '#16a34a' : '#dc2626' }}>
-                    {t.type === 'income' ? '+' : '-'}{fmt(t.amount)}
+                    {hidden ? '••••' : `${t.type === 'income' ? '+' : '-'}${fmt(t.amount)}`}
                   </div>
                 </button>
               )

@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#000000',
+  themeColor: '#1a6ef5',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -24,9 +24,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="es">
       <head>
-        <link rel="apple-touch-icon" href="/icon-192.png" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="Wallet" />
       </head>
       <body className="bg-white text-gray-900 antialiased">{children}</body>
     </html>
