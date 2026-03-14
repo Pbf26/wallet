@@ -1,63 +1,116 @@
 'use client'
+import { useState } from 'react'
 import type { Profile } from '@/lib/types'
 import { fmt, stabLabel, stabColor, varLabel } from '@/lib/utils'
 
 interface Props {
   profile: Profile
-  onMarkFixed: (type: 'inc' | 'exp', idx: number) => Promise<void>
+  onMarkFixed: (type: 'inc' | 'exp', idx: number, bank?: string, method?: string) => Promise<void>
 }
 
 export default function Fixed({ profile, onMarkFixed }: Props) {
   const mk = new Date().toISOString().substring(0, 7)
   const ml = profile.monthly_log?.[mk] || {}
+  const [marking, setMarking] = useState<string | null>(null)
+  const [bankSelect, setBankSelect] = useState<{ type: 'inc' | 'exp'; idx: number } | null>(null)
+  const [chosenBank, setChosenBank] = useState('')
+  const [chosenMethod, setChosenMethod] = useState('')
+
+  const paymentOptions: { label: string; bank: string; method: string }[] = []
+  for (const acc of (profile.bank_accounts || [])) {
+    paymentOptions.push({ label: `${acc.bank} · Débito`, bank: acc.bank, method: 'débito' })
+  }
+  for (const card of (profile.credit_cards || [])) {
+    paymentOptions.push({ label: `${card.bank} · ${card.name}`, bank: card.bank, method: `crédito ${card.name}` })
+  }
+
+  const doMark = async (type: 'inc' | 'exp', idx: number) => {
+    if (paymentOptions.length > 0) {
+      setBankSelect({ type, idx })
+      setChosenBank('')
+      setChosenMethod('')
+    } else {
+      setMarking(`${type}_${idx}`)
+      await onMarkFixed(type, idx)
+      setMarking(null)
+    }
+  }
+
+  const confirmMark = async () => {
+    if (!bankSelect) return
+    setMarking(`${bankSelect.type}_${bankSelect.idx}`)
+    setBankSelect(null)
+    await onMarkFixed(bankSelect.type, bankSelect.idx, chosenBank || undefined, chosenMethod || undefined)
+    setMarking(null)
+  }
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="px-4 pt-5 pb-2">
-        <div className="text-lg font-semibold">Compromisos fijos</div>
-        <div className="text-xs text-gray-400 mt-0.5">Marca los que ya recibiste o pagaste</div>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#f0f0ed' }}>
+      <div style={{ padding: '20px 16px 12px', background: '#fff', borderBottom: '1px solid #e2e2de' }}>
+        <div style={{ fontSize: 17, fontWeight: 600 }}>Compromisos fijos</div>
+        <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>Marca los que ya recibiste o pagaste</div>
       </div>
 
-      <div className="flex-1 scrollable px-4 pb-4">
+      {/* Bank picker modal */}
+      {bankSelect && (
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 50, display: 'flex', alignItems: 'flex-end' }}>
+          <div style={{ background: '#fff', width: '100%', borderRadius: '20px 20px 0 0', padding: '20px 16px 32px' }}>
+            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>¿Con qué {bankSelect.type === 'inc' ? 'recibiste este ingreso' : 'pagaste este gasto'}?</div>
+            <div style={{ fontSize: 12, color: '#888', marginBottom: 16 }}>Selecciona el banco y tipo de producto</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+              {paymentOptions.map((opt, i) => {
+                const active = chosenBank === opt.bank && chosenMethod === opt.method
+                return (
+                  <button key={i} onClick={() => { setChosenBank(opt.bank); setChosenMethod(opt.method) }}
+                    style={{ padding: '12px 16px', borderRadius: 12, border: `1.5px solid ${active ? '#1a1a1a' : '#e2e2de'}`, background: active ? '#1a1a1a' : '#f7f7f4', color: active ? '#fff' : '#333', fontSize: 13, fontWeight: 500, textAlign: 'left', cursor: 'pointer' }}>
+                    {opt.label}
+                  </button>
+                )
+              })}
+              <button onClick={() => { setChosenBank(''); setChosenMethod('') }}
+                style={{ padding: '12px 16px', borderRadius: 12, border: `1.5px solid ${!chosenBank ? '#1a1a1a' : '#e2e2de'}`, background: !chosenBank ? '#1a1a1a' : '#f7f7f4', color: !chosenBank ? '#fff' : '#333', fontSize: 13, fontWeight: 500, textAlign: 'left', cursor: 'pointer' }}>
+                Sin especificar
+              </button>
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setBankSelect(null)} className="btn-secondary" style={{ flex: 1 }}>Cancelar</button>
+              <button onClick={confirmMark} className="btn-primary" style={{ flex: 1 }}>Confirmar</button>
+            </div>
+          </div>
+        </div>
+      )}
 
-        {/* Ingresos fijos */}
+      <div className="flex-1 scrollable" style={{ padding: '14px 16px' }}>
+
         {profile.incomes.length > 0 && (
-          <div className="mb-5">
-            <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">Ingresos fijos mensuales</div>
-            <div className="border border-gray-100 rounded-2xl divide-y divide-gray-50">
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Ingresos fijos</div>
+            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
               {profile.incomes.map((inc, i) => {
                 const done = !!ml[`inc_${i}`]
+                const isMarking = marking === `inc_${i}`
                 const sc = stabColor[inc.stability] || stabColor.media
                 const sl = stabLabel[inc.stability] || 'Variable'
                 return (
-                  <div key={i} className="p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-medium">{inc.name}</span>
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${sc}`}>{sl}</span>
+                  <div key={i} style={{ padding: '14px', borderBottom: i < profile.incomes.length - 1 ? '1px solid #f0f0ed' : 'none' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 3 }}>
+                          <span style={{ fontSize: 13, fontWeight: 600 }}>{inc.name}</span>
+                          <span className={`tag ${sc}`} style={{ fontSize: 10 }}>{sl}</span>
                         </div>
-                        <div className="text-xs text-gray-500 mt-1 leading-relaxed">
+                        <div style={{ fontSize: 11, color: '#888', lineHeight: 1.5 }}>
                           {inc.description}
-                          {inc.day_of_month && <span> · Llega el día {inc.day_of_month}</span>}
+                          {inc.day_of_month && <span> · Día {inc.day_of_month}</span>}
                         </div>
-                        {inc.notes && <div className="text-xs text-gray-400 mt-0.5">{inc.notes}</div>}
-                        <div className="flex gap-3 mt-1 text-xs text-gray-400">
-                          {inc.growth_probability && <span>Crecimiento: {inc.growth_probability}</span>}
-                          {inc.loss_risk && <span>Riesgo pérdida: {inc.loss_risk}</span>}
-                        </div>
+                        {inc.notes && <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>{inc.notes}</div>}
                       </div>
-                      <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                        <span className="text-sm font-semibold text-green-600">+{fmt(inc.amount)}</span>
-                        <button
-                          onClick={() => !done && onMarkFixed('inc', i)}
-                          className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${
-                            done
-                              ? 'bg-green-100 text-green-700 cursor-default'
-                              : 'bg-gray-100 text-gray-700 active:bg-gray-200'
-                          }`}
-                        >
-                          {done ? '✓ Recibido' : 'Marcar'}
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
+                        <span style={{ fontSize: 14, fontWeight: 700, color: '#16a34a' }}>+{fmt(inc.amount)}</span>
+                        <button onClick={() => !done && !isMarking && doMark('inc', i)}
+                          disabled={done || isMarking}
+                          style={{ padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: done ? 'default' : 'pointer', border: 'none', background: done ? '#dcfce7' : '#f0f0ed', color: done ? '#16a34a' : '#555' }}>
+                          {isMarking ? '...' : done ? '✓ Recibido' : 'Marcar'}
                         </button>
                       </div>
                     </div>
@@ -68,38 +121,32 @@ export default function Fixed({ profile, onMarkFixed }: Props) {
           </div>
         )}
 
-        {/* Gastos fijos */}
         {profile.fixed_expenses.length > 0 && (
-          <div className="mb-5">
-            <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">Gastos fijos mensuales</div>
-            <div className="border border-gray-100 rounded-2xl divide-y divide-gray-50">
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Gastos fijos</div>
+            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
               {profile.fixed_expenses.map((exp, i) => {
                 const done = !!ml[`exp_${i}`]
+                const isMarking = marking === `exp_${i}`
                 const vl = varLabel[exp.variance] || ''
                 return (
-                  <div key={i} className="p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium">{exp.name}</div>
-                        <div className="text-xs text-gray-500 mt-0.5">
+                  <div key={i} style={{ padding: '14px', borderBottom: i < profile.fixed_expenses.length - 1 ? '1px solid #f0f0ed' : 'none' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 3 }}>{exp.name}</div>
+                        <div style={{ fontSize: 11, color: '#888', lineHeight: 1.5 }}>
                           {exp.category}
                           {exp.day_of_month && <span> · Día {exp.day_of_month}</span>}
                           {vl && <span> · {vl}</span>}
                         </div>
-                        {exp.variance_notes && <div className="text-xs text-gray-400 mt-0.5">{exp.variance_notes}</div>}
-                        {exp.notes && <div className="text-xs text-gray-400 mt-0.5">{exp.notes}</div>}
+                        {exp.variance_notes && <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>{exp.variance_notes}</div>}
                       </div>
-                      <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                        <span className="text-sm font-semibold text-red-500">-{fmt(exp.amount)}</span>
-                        <button
-                          onClick={() => !done && onMarkFixed('exp', i)}
-                          className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${
-                            done
-                              ? 'bg-green-100 text-green-700 cursor-default'
-                              : 'bg-gray-100 text-gray-700 active:bg-gray-200'
-                          }`}
-                        >
-                          {done ? '✓ Pagado' : 'Pagar'}
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
+                        <span style={{ fontSize: 14, fontWeight: 700, color: '#dc2626' }}>-{fmt(exp.amount)}</span>
+                        <button onClick={() => !done && !isMarking && doMark('exp', i)}
+                          disabled={done || isMarking}
+                          style={{ padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: done ? 'default' : 'pointer', border: 'none', background: done ? '#dcfce7' : '#f0f0ed', color: done ? '#16a34a' : '#555' }}>
+                          {isMarking ? '...' : done ? '✓ Pagado' : 'Pagar'}
                         </button>
                       </div>
                     </div>
@@ -110,24 +157,23 @@ export default function Fixed({ profile, onMarkFixed }: Props) {
           </div>
         )}
 
-        {/* Deudas */}
         {profile.debts.length > 0 && (
-          <div className="mb-5">
-            <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">Deudas activas</div>
-            <div className="border border-gray-100 rounded-2xl divide-y divide-gray-50">
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Deudas activas</div>
+            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
               {profile.debts.map((d, i) => (
-                <div key={i} className="p-4">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1 min-w-0 pr-3">
-                      <div className="text-sm font-medium">{d.name}</div>
-                      <div className="text-xs text-gray-500 mt-0.5">
+                <div key={i} style={{ padding: '14px', borderBottom: i < profile.debts.length - 1 ? '1px solid #f0f0ed' : 'none' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1, minWidth: 0, paddingRight: 12 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 3 }}>{d.name}</div>
+                      <div style={{ fontSize: 11, color: '#888' }}>
                         {d.institution}
                         {d.months_remaining && <span> · {d.months_remaining} cuotas restantes</span>}
                         {d.interest_rate && <span> · {d.interest_rate}% tasa</span>}
                       </div>
-                      <div className="text-xs text-gray-400 mt-0.5">Pendiente total: {fmt(d.total_amount)}</div>
+                      <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>Total pendiente: {fmt(d.total_amount)}</div>
                     </div>
-                    <span className="text-sm font-semibold text-red-500 whitespace-nowrap">-{fmt(d.monthly_payment)}/mes</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: '#dc2626', whiteSpace: 'nowrap' }}>-{fmt(d.monthly_payment)}/mes</span>
                   </div>
                 </div>
               ))}
@@ -135,22 +181,18 @@ export default function Fixed({ profile, onMarkFixed }: Props) {
           </div>
         )}
 
-        {/* Inversiones */}
         {profile.investments.length > 0 && (
-          <div className="mb-4">
-            <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">Inversiones y ahorro</div>
-            <div className="border border-gray-100 rounded-2xl divide-y divide-gray-50">
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Inversiones y ahorro</div>
+            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
               {profile.investments.map((inv, i) => (
-                <div key={i} className="p-4">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1 min-w-0 pr-3">
-                      <div className="text-sm font-medium">{inv.name}</div>
-                      <div className="text-xs text-gray-500 mt-0.5">
-                        {inv.type}
-                        {inv.monthly_contribution && <span> · Aporte mensual: {fmt(inv.monthly_contribution)}</span>}
-                      </div>
+                <div key={i} style={{ padding: '14px', borderBottom: i < profile.investments.length - 1 ? '1px solid #f0f0ed' : 'none' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 3 }}>{inv.name}</div>
+                      <div style={{ fontSize: 11, color: '#888' }}>{inv.type}{inv.monthly_contribution ? ` · Aporte: ${fmt(inv.monthly_contribution)}/mes` : ''}</div>
                     </div>
-                    <span className="text-sm font-semibold text-gray-700">{fmt(inv.amount)}</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: '#1a1a1a' }}>{fmt(inv.amount)}</span>
                   </div>
                 </div>
               ))}
@@ -159,7 +201,7 @@ export default function Fixed({ profile, onMarkFixed }: Props) {
         )}
 
         {profile.incomes.length === 0 && profile.fixed_expenses.length === 0 && (
-          <div className="text-center py-16 text-sm text-gray-400">No hay ítems fijos configurados</div>
+          <div style={{ textAlign: 'center', padding: '3rem 1rem', fontSize: 13, color: '#aaa' }}>No hay ítems fijos configurados</div>
         )}
       </div>
     </div>
