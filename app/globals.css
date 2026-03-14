@@ -2,22 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 html, body {
   height: 100%;
   overflow: hidden;
+  background: #f0f0ed;
 }
 
-#__next {
-  height: 100%;
-}
+#__next { height: 100%; }
 
-.safe-bottom {
-  padding-bottom: env(safe-area-inset-bottom);
-}
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
 
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
@@ -30,21 +25,84 @@ input[type="number"]::-webkit-outer-spin-button {
   -webkit-overflow-scrolling: touch;
 }
 
-/* Chat bubbles */
 .bubble-user {
-  background: #000;
+  background: #1a1a1a;
   color: #fff;
   border-radius: 18px 18px 4px 18px;
 }
 
 .bubble-ai {
-  background: #f3f4f6;
-  color: #111;
+  background: #fff;
+  color: #1a1a1a;
   border-radius: 18px 18px 18px 4px;
+  border: 1px solid #e2e2de;
 }
 
 .bubble-err {
-  background: #fee2e2;
+  background: #fff0f0;
   color: #991b1b;
   border-radius: 18px 18px 18px 4px;
+  border: 1px solid #fecaca;
 }
+
+.card {
+  background: #fff;
+  border: 1px solid #e2e2de;
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.card-inner {
+  background: #f7f7f4;
+  border: 1px solid #e2e2de;
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.btn-primary {
+  background: #1a1a1a;
+  color: #fff;
+  border-radius: 12px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.btn-primary:disabled { opacity: 0.4; }
+
+.btn-secondary {
+  background: #fff;
+  color: #1a1a1a;
+  border-radius: 12px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  border: 1.5px solid #e2e2de;
+  cursor: pointer;
+}
+
+.input-base {
+  background: #f7f7f4;
+  border: 1.5px solid #e2e2de;
+  border-radius: 12px;
+  padding: 11px 14px;
+  font-size: 14px;
+  color: #1a1a1a;
+  outline: none;
+  width: 100%;
+  transition: border-color 0.15s;
+}
+.input-base:focus { border-color: #1a1a1a; }
+
+.tag {
+  display: inline-block;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 100px;
+  font-weight: 500;
+}
+
+.divider { border: none; border-top: 1px solid #e2e2de; margin: 4px 0; }

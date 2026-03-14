@@ -1,3 +1,19 @@
+export interface BankAccount {
+  bank: string
+  account_type: 'corriente' | 'vista' | 'ahorro'
+  balance: number
+  account_number?: string
+}
+
+export interface CreditCard {
+  bank: string
+  name: string
+  limit: number
+  used: number
+  payment_day: number | null
+  pays_full: boolean
+}
+
 export interface Income {
   name: string
   description: string
@@ -39,6 +55,8 @@ export interface Profile {
   id?: string
   user_id?: string
   current_balance: number
+  bank_accounts: BankAccount[]
+  credit_cards: CreditCard[]
   incomes: Income[]
   fixed_expenses: FixedExpense[]
   debts: Debt[]
@@ -55,6 +73,8 @@ export interface Transaction {
   category: string
   description: string
   date: string
+  bank?: string
+  payment_method?: string
   created_at?: string
 }
 

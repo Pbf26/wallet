@@ -14,7 +14,7 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'dashboard', label: 'Resumen', icon: '◎' },
   { id: 'register', label: 'Registrar', icon: '＋' },
   { id: 'fixed', label: 'Fijos', icon: '↻' },
-  { id: 'goals', label: 'Metas', icon: '◎' },
+  { id: 'goals', label: 'Metas', icon: '◈' },
 ]
 
 export default function WalletApp({ userId }: Props) {
@@ -44,27 +44,19 @@ export default function WalletApp({ userId }: Props) {
       await supabase.from('profiles').update(payload).eq('id', p.id)
     } else {
       const { data } = await supabase.from('profiles').insert(payload).select().single()
-      if (data) setProfile(data as Profile)
+      if (data) { setProfile(data as Profile); return }
     }
     setProfile(payload as Profile)
   }
 
   const addTransaction = async (txn: Omit<Transaction, 'id' | 'user_id'>) => {
-    const { data } = await supabase
-      .from('transactions')
-      .insert({ ...txn, user_id: userId })
-      .select()
-      .single()
+    const { data } = await supabase.from('transactions').insert({ ...txn, user_id: userId }).select().single()
     if (data) setTransactions((prev) => [data as Transaction, ...prev])
     return data as Transaction
   }
 
   const addGoal = async (name: string, target: number, current: number) => {
-    const { data } = await supabase
-      .from('goals')
-      .insert({ name, target, current, user_id: userId })
-      .select()
-      .single()
+    const { data } = await supabase.from('goals').insert({ name, target, current, user_id: userId }).select().single()
     if (data) setGoals((prev) => [...prev, data as Goal])
   }
 
@@ -78,14 +70,11 @@ export default function WalletApp({ userId }: Props) {
     setGoals((prev) => prev.filter((g) => g.id !== id))
   }
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut()
-  }
-
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="w-8 h-8 border-2 border-gray-200 border-t-black rounded-full animate-spin" />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#f0f0ed' }}>
+        <div style={{ width: 32, height: 32, border: '2px solid #e2e2de', borderTopColor: '#1a1a1a', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     )
   }
@@ -97,11 +86,8 @@ export default function WalletApp({ userId }: Props) {
           await saveProfile(p)
           if (p.current_balance > 0) {
             await addTransaction({
-              type: 'income',
-              amount: p.current_balance,
-              category: 'Balance inicial',
-              description: 'Balance inicial de cuentas',
-              date: new Date().toISOString().split('T')[0],
+              type: 'income', amount: p.current_balance, category: 'Balance inicial',
+              description: 'Balance inicial de cuentas', date: new Date().toISOString().split('T')[0],
             })
           }
         }}
@@ -110,65 +96,36 @@ export default function WalletApp({ userId }: Props) {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-white">
-      {/* Content */}
-      <div className="flex-1 overflow-hidden">
-        {tab === 'dashboard' && (
-          <Dashboard
-            profile={profile}
-            transactions={transactions}
-            goals={goals}
-            onSignOut={handleSignOut}
-          />
-        )}
-        {tab === 'register' && (
-          <Register onAdd={addTransaction} />
-        )}
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#f0f0ed' }}>
+      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        {tab === 'dashboard' && <Dashboard profile={profile} transactions={transactions} goals={goals} onSignOut={async () => { await supabase.auth.signOut() }} />}
+        {tab === 'register' && <Register profile={profile} onAdd={addTransaction} />}
         {tab === 'fixed' && (
-          <Fixed
-            profile={profile}
-            onMarkFixed={async (type, idx) => {
-              const item = type === 'inc' ? profile.incomes[idx] : profile.fixed_expenses[idx]
-              const mk = new Date().toISOString().substring(0, 7)
-              const log = { ...profile.monthly_log }
-              if (!log[mk]) log[mk] = {}
-              log[mk][`${type}_${idx}`] = true
-              const updated = { ...profile, monthly_log: log }
-              await saveProfile(updated)
-              const catMap: Record<string, string> = {}
-              if (type === 'inc') {
-                const n = item.name.toLowerCase()
-                catMap.cat = n.includes('sueldo') || n.includes('salario') ? 'Sueldo'
-                  : n.includes('freelance') || n.includes('honorario') ? 'Freelance'
-                  : n.includes('arriendo') ? 'Arriendo' : 'Otros ingresos'
-              } else {
-                catMap.cat = (item as { category: string }).category
-              }
-              await addTransaction({
-                type: type === 'inc' ? 'income' : 'expense',
-                amount: item.amount,
-                category: catMap.cat,
-                description: item.name,
-                date: new Date().toISOString().split('T')[0],
-              })
-            }}
-          />
+          <Fixed profile={profile} onMarkFixed={async (type, idx) => {
+            const item = type === 'inc' ? profile.incomes[idx] : profile.fixed_expenses[idx]
+            const mk = new Date().toISOString().substring(0, 7)
+            const log = { ...profile.monthly_log }
+            if (!log[mk]) log[mk] = {}
+            log[mk][`${type}_${idx}`] = true
+            const updated = { ...profile, monthly_log: log }
+            await saveProfile(updated)
+            const n = item.name.toLowerCase()
+            const cat = type === 'inc'
+              ? (n.includes('sueldo') || n.includes('salario') ? 'Sueldo' : n.includes('freelance') || n.includes('honorario') ? 'Freelance' : n.includes('arriendo') ? 'Arriendo' : 'Otros ingresos')
+              : (item as { category: string }).category
+            await addTransaction({
+              type: type === 'inc' ? 'income' : 'expense', amount: item.amount, category: cat,
+              description: item.name, date: new Date().toISOString().split('T')[0],
+            })
+          }} />
         )}
         {tab === 'goals' && (
-          <Goals
-            goals={goals}
-            onAdd={addGoal}
+          <Goals goals={goals} onAdd={addGoal}
             onContribute={async (id, amount) => {
               const goal = goals.find((g) => g.id === id)
               if (!goal) return
               await updateGoal(id, goal.current + amount)
-              await addTransaction({
-                type: 'expense',
-                amount,
-                category: 'Ahorro',
-                description: 'Aporte: ' + goal.name,
-                date: new Date().toISOString().split('T')[0],
-              })
+              await addTransaction({ type: 'expense', amount, category: 'Ahorro', description: 'Aporte: ' + goal.name, date: new Date().toISOString().split('T')[0] })
             }}
             onDelete={deleteGoal}
           />
@@ -176,17 +133,12 @@ export default function WalletApp({ userId }: Props) {
       </div>
 
       {/* Bottom nav */}
-      <nav className="border-t border-gray-100 bg-white safe-bottom">
-        <div className="flex">
+      <nav style={{ borderTop: '1px solid #e2e2de', background: '#fff', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <div style={{ display: 'flex' }}>
           {TABS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`flex-1 flex flex-col items-center py-3 gap-0.5 text-xs transition-colors ${
-                tab === t.id ? 'text-black' : 'text-gray-400'
-              }`}
-            >
-              <span className="text-lg leading-none">{t.icon}</span>
+            <button key={t.id} onClick={() => setTab(t.id)}
+              style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 4px', gap: 2, fontSize: 11, cursor: 'pointer', background: 'none', border: 'none', color: tab === t.id ? '#1a1a1a' : '#aaa', fontWeight: tab === t.id ? 600 : 400 }}>
+              <span style={{ fontSize: 18 }}>{t.icon}</span>
               <span>{t.label}</span>
             </button>
           ))}

@@ -5,29 +5,74 @@ import { fmt } from '@/lib/utils'
 
 interface Msg { role: 'user' | 'ai' | 'err'; text: string }
 
-const OB_SYS = `Eres el asesor financiero de Wallet, una app personal de finanzas para Chile (moneda: pesos chilenos CLP). Tu trabajo es hacer un diagnóstico financiero profundo y personalizado a través de una conversación natural.
+const OB_SYS = `Eres el asesor financiero de Wallet, app de finanzas personales para Chile (CLP). Haz un diagnóstico financiero profundo y personalizado. Sé cálido, usa tuteo, máximo 2 preguntas por mensaje.
 
-FILOSOFÍA: No hagas preguntas genéricas. Por cada ingreso y por cada gasto fijo, indaga en detalle. Quieres entender no solo los números, sino la naturaleza, estabilidad y perspectiva de cada ítem. Sé cálido, directo y usa tuteo.
+TEMAS EN ORDEN:
 
-TEMAS A CUBRIR en este orden lógico:
-1. SALDO ACTUAL — saldo total disponible hoy en cuentas y efectivo
-2. INGRESOS — por cada fuente: qué es exactamente, monto neto mensual, tipo de contrato/relación laboral, estabilidad, probabilidad de crecimiento o pérdida en 12 meses, bonos o variables, día que llega. Preguntar si hay más fuentes hasta agotarlas.
-3. VIVIENDA — arriendo o propiedad, monto, día de pago, reajustes, gastos comunes
-4. CUENTAS DEL HOGAR — luz, agua, gas, internet, teléfono: monto promedio y varianza
-5. TARJETAS DE CRÉDITO — banco, si paga total o cuotas, monto mensual, cuotas pendientes, día de pago
-6. SUSCRIPCIONES — nombre exacto, monto, si es CLP o USD
-7. SEGUROS — tipo, compañía, monto mensual
-8. DEUDAS — tipo, institución, cuota, total pendiente, cuotas restantes, tasa
-9. INVERSIONES — AFP, APV, fondos mutuos, acciones, cripto, propiedades
-10. OTROS COMPROMISOS — pensión alimenticia, ayuda a familiares, otros fijos
+1. BANCOS Y CUENTAS — pregunta cuántos bancos tiene. Por CADA banco:
+   - Nombre del banco (BancoEstado, Santander, BCI, Scotiabank, Banco de Chile/Edwards, Itaú, BICE, Security, Falabella, Ripley, otro)
+   - Qué productos tiene en ese banco: cuenta corriente, cuenta vista/RUT, cuenta de ahorro
+   - Saldo actual en cada cuenta
+   - Si tiene tarjeta de débito asociada
+   - Si tiene tarjeta de crédito en ese banco: nombre de la tarjeta, límite de crédito, cuánto tiene usado actualmente, día de cierre/pago, si paga el total o mínimo cada mes
 
-REGLAS: Tutéalo. Máximo 2 preguntas por mensaje. Profundiza antes de pasar al siguiente tema. Usa contexto previo. Cuando tengas suficiente info, genera el perfil completo.
+2. INGRESOS — por cada fuente:
+   - Descripción exacta (empleado dependiente, honorarios, negocio propio, arriendo recibido, etc.)
+   - Monto neto mensual que llega a la cuenta
+   - Si es dependiente: tipo de contrato (indefinido/plazo fijo), estabilidad de la empresa/empleo
+   - Si es independiente: cantidad de clientes, si es recurrente o por proyecto
+   - Probabilidad de que ese ingreso crezca en 12 meses (alta/media/baja) y por qué
+   - Probabilidad de que desaparezca o baje (alta/media/baja) y por qué
+   - Bonos, comisiones u otros variables anuales
+   - Día del mes que llega ese ingreso
+   - ¿Tiene otras fuentes? Preguntar hasta agotar todas.
 
-RESPONDE SOLO JSON PURO sin backticks ni markdown, sin ningún texto antes o después del JSON.
+3. VIVIENDA — arriendo o propiedad propia:
+   - Si arrienda: monto, día de pago, reajuste anual (UF, IPC, fijo)
+   - Si tiene dividendo: banco, monto cuota, años restantes
+   - Gastos comunes si aplica
 
-Durante conversación: {"action":"question","text":"mensaje aquí","progress":0-100}
+4. CUENTAS DEL HOGAR — por cada servicio:
+   - Nombre (luz, agua, gas, internet, teléfono fijo, celular)
+   - Monto promedio mensual
+   - Varianza: ¿sube en invierno? ¿cuánto puede subir?
 
-Cuando completo: {"action":"complete","summary":"3-4 oraciones situación + riesgos/oportunidades","profile":{"current_balance":number,"incomes":[{"name":"string","description":"string","amount":number,"day_of_month":null,"stability":"alta|media|baja","growth_probability":"alta|media|baja","loss_risk":"alta|media|baja","notes":"string"}],"fixed_expenses":[{"name":"string","category":"string","amount":number,"variance":"fija|baja|media|alta","variance_notes":"string","day_of_month":null,"notes":"string"}],"debts":[{"name":"string","institution":"string","monthly_payment":number,"total_amount":number,"months_remaining":null,"interest_rate":null}],"investments":[{"name":"string","amount":number,"type":"string","monthly_contribution":null}]}}`
+5. SUSCRIPCIONES — por cada una:
+   - Nombre exacto del servicio
+   - Monto mensual (si es anual, dividir por 12)
+   - Si se cobra en USD, preguntar tipo de cambio que usa
+
+6. SEGUROS — por cada uno:
+   - Tipo (vida, auto, complementario salud, hogar, otro)
+   - Compañía y monto mensual
+
+7. DEUDAS ACTIVAS — por cada deuda:
+   - Tipo (crédito consumo, automotriz, hipotecario, DICOM, otro)
+   - Institución
+   - Cuota mensual
+   - Monto total pendiente
+   - Cuotas restantes
+   - Tasa de interés si la sabe
+
+8. INVERSIONES Y AHORRO:
+   - AFP: cuál, en qué fondo (A/B/C/D/E), saldo aproximado
+   - APV: si tiene, monto mensual que aporta
+   - Fondos mutuos, ETFs, acciones: institución y monto
+   - Cripto, dólares, oro u otros activos
+   - Propiedades adicionales: valor estimado, si genera renta
+
+9. OTROS COMPROMISOS:
+   - Pensión alimenticia u obligaciones legales
+   - Ayuda económica a familiares mensual
+   - Cualquier otro gasto fijo no cubierto
+
+CUANDO TENGAS INFO SUFICIENTE (mínimo bancos + ingresos + gastos principales), genera el perfil.
+
+RESPONDE SOLO JSON PURO sin backticks:
+
+Conversación: {"action":"question","text":"mensaje","progress":0-100}
+
+Completo: {"action":"complete","summary":"3-4 oraciones sobre situación, riesgos y oportunidades","profile":{"current_balance":number,"bank_accounts":[{"bank":"string","account_type":"corriente|vista|ahorro","balance":number,"account_number":null}],"credit_cards":[{"bank":"string","name":"string","limit":number,"used":number,"payment_day":null,"pays_full":true}],"incomes":[{"name":"string","description":"string","amount":number,"day_of_month":null,"stability":"alta|media|baja","growth_probability":"alta|media|baja","loss_risk":"alta|media|baja","notes":"string"}],"fixed_expenses":[{"name":"string","category":"string","amount":number,"variance":"fija|baja|media|alta","variance_notes":"string","day_of_month":null,"notes":"string"}],"debts":[{"name":"string","institution":"string","monthly_payment":number,"total_amount":number,"months_remaining":null,"interest_rate":null}],"investments":[{"name":"string","amount":number,"type":"string","monthly_contribution":null}]}}`
 
 interface Props { onComplete: (p: Profile) => Promise<void> }
 
@@ -74,16 +119,14 @@ export default function Onboarding({ onComplete }: Props) {
         if (p.action === 'complete') { setPending(p.profile); setSummary(p.summary); setConfirming(true) }
         else setMsgs([{ role: 'ai', text: p.text }])
       } catch {
-        setMsgs([{ role: 'ai', text: '¡Hola! Soy tu asesor financiero de Wallet. Vamos a conocer tu situación en detalle.\n\n¿Cuánto dinero tienes disponible hoy sumando todas tus cuentas bancarias y efectivo?' }])
+        setMsgs([{ role: 'ai', text: '¡Hola! Soy tu asesor financiero de Wallet.\n\nPara empezar, cuéntame: ¿en cuántos bancos tienes cuentas actualmente?' }])
       }
     }
     init()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [msgs, confirming])
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [msgs, confirming])
 
   const send = async () => {
     if (!input.trim() || sending) return
@@ -113,6 +156,8 @@ export default function Onboarding({ onComplete }: Props) {
     setSaving(true)
     await onComplete({
       current_balance: pending.current_balance || 0,
+      bank_accounts: pending.bank_accounts || [],
+      credit_cards: pending.credit_cards || [],
       incomes: pending.incomes || [],
       fixed_expenses: pending.fixed_expenses || [],
       debts: pending.debts || [],
@@ -121,105 +166,140 @@ export default function Onboarding({ onComplete }: Props) {
     })
   }
 
-  const fmt2 = fmt
-
   if (confirming && pending) {
+    const totalBank = (pending.bank_accounts || []).reduce((s, a) => s + a.balance, 0)
+    const totalDebt = (pending.debts || []).reduce((s, d) => s + d.total_amount, 0)
+    const totalCardUsed = (pending.credit_cards || []).reduce((s, c) => s + c.used, 0)
+    const netWorth = totalBank - totalDebt - totalCardUsed
     const tInc = (pending.incomes || []).reduce((s, i) => s + i.amount, 0)
     const tExp = (pending.fixed_expenses || []).reduce((s, e) => s + e.amount, 0)
-    const net = tInc - tExp
-    return (
-      <div className="flex flex-col h-screen bg-white">
-        <div className="flex-1 scrollable px-4 pt-6 pb-4">
-          <div className="text-lg font-semibold mb-1">Tu perfil financiero</div>
-          <div className="text-sm text-gray-500 mb-5 leading-relaxed">{summary}</div>
 
-          {pending.current_balance > 0 && (
-            <div className="mb-4">
-              <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">Saldo inicial</div>
-              <div className="border border-gray-100 rounded-2xl p-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Cuentas y efectivo</span>
-                  <span className="text-sm font-semibold text-green-600">{fmt2(pending.current_balance)}</span>
+    return (
+      <div className="flex flex-col h-screen" style={{ background: '#f0f0ed' }}>
+        <div className="flex-1 scrollable px-4 pt-6 pb-4">
+          <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 4 }}>Tu perfil financiero</div>
+          <div style={{ fontSize: 13, color: '#666', marginBottom: 20, lineHeight: 1.6 }}>{summary}</div>
+
+          {/* Net worth summary */}
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>Situación neta</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 8 }}>
+              <span style={{ color: '#555' }}>Cash en cuentas</span>
+              <span style={{ color: '#16a34a', fontWeight: 600 }}>{fmt(totalBank)}</span>
+            </div>
+            {totalCardUsed > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 8 }}>
+              <span style={{ color: '#555' }}>Deuda tarjetas</span>
+              <span style={{ color: '#dc2626', fontWeight: 600 }}>-{fmt(totalCardUsed)}</span>
+            </div>}
+            {totalDebt > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 8 }}>
+              <span style={{ color: '#555' }}>Deudas activas</span>
+              <span style={{ color: '#dc2626', fontWeight: 600 }}>-{fmt(totalDebt)}</span>
+            </div>}
+            <hr className="divider" style={{ margin: '10px 0' }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight: 700 }}>
+              <span>Patrimonio neto</span>
+              <span style={{ color: netWorth >= 0 ? '#16a34a' : '#dc2626' }}>{fmt(netWorth)}</span>
+            </div>
+          </div>
+
+          {pending.bank_accounts?.length > 0 && (
+            <div className="card">
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Cuentas bancarias</div>
+              {pending.bank_accounts.map((a, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, paddingBottom: 8, marginBottom: 8, borderBottom: i < pending.bank_accounts.length - 1 ? '1px solid #e2e2de' : 'none' }}>
+                  <div><div style={{ fontWeight: 500 }}>{a.bank}</div><div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>{a.account_type}</div></div>
+                  <span style={{ color: '#16a34a', fontWeight: 600 }}>{fmt(a.balance)}</span>
                 </div>
-              </div>
+              ))}
+            </div>
+          )}
+
+          {pending.credit_cards?.length > 0 && (
+            <div className="card">
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Tarjetas de crédito</div>
+              {pending.credit_cards.map((c, i) => (
+                <div key={i} style={{ paddingBottom: 10, marginBottom: 10, borderBottom: i < pending.credit_cards.length - 1 ? '1px solid #e2e2de' : 'none' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                    <div><div style={{ fontWeight: 500 }}>{c.bank} — {c.name}</div><div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>Límite: {fmt(c.limit)}{c.payment_day ? ` · Día pago: ${c.payment_day}` : ''}</div></div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ color: '#dc2626', fontWeight: 600, fontSize: 13 }}>-{fmt(c.used)}</div>
+                      <div style={{ fontSize: 11, color: '#888' }}>usado</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 
           {pending.incomes?.length > 0 && (
-            <div className="mb-4">
-              <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">Ingresos fijos</div>
-              <div className="border border-gray-100 rounded-2xl divide-y divide-gray-50">
-                {pending.incomes.map((inc, i) => (
-                  <div key={i} className="p-4">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1 min-w-0 pr-3">
-                        <div className="text-sm font-medium">{inc.name}</div>
-                        <div className="text-xs text-gray-500 mt-0.5">{inc.description}</div>
-                        {inc.notes && <div className="text-xs text-gray-400 mt-0.5">{inc.notes}</div>}
-                      </div>
-                      <span className="text-sm font-semibold text-green-600 whitespace-nowrap">+{fmt2(inc.amount)}</span>
-                    </div>
+            <div className="card">
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Ingresos fijos</div>
+              {pending.incomes.map((inc, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, paddingBottom: 8, marginBottom: 8, borderBottom: i < pending.incomes.length - 1 ? '1px solid #e2e2de' : 'none' }}>
+                  <div style={{ flex: 1, minWidth: 0, paddingRight: 12 }}>
+                    <div style={{ fontWeight: 500 }}>{inc.name}</div>
+                    <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>{inc.description}</div>
+                    {inc.notes && <div style={{ fontSize: 11, color: '#aaa', marginTop: 1 }}>{inc.notes}</div>}
                   </div>
-                ))}
-              </div>
+                  <span style={{ color: '#16a34a', fontWeight: 600, whiteSpace: 'nowrap' }}>+{fmt(inc.amount)}</span>
+                </div>
+              ))}
             </div>
           )}
 
           {pending.fixed_expenses?.length > 0 && (
-            <div className="mb-4">
-              <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">Gastos fijos</div>
-              <div className="border border-gray-100 rounded-2xl divide-y divide-gray-50">
-                {pending.fixed_expenses.map((exp, i) => (
-                  <div key={i} className="p-4">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1 min-w-0 pr-3">
-                        <div className="text-sm font-medium">{exp.name}</div>
-                        <div className="text-xs text-gray-500 mt-0.5">{exp.category}{exp.variance_notes ? ' · ' + exp.variance_notes : ''}</div>
-                      </div>
-                      <span className="text-sm font-semibold text-red-500 whitespace-nowrap">-{fmt2(exp.amount)}</span>
-                    </div>
+            <div className="card">
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Gastos fijos</div>
+              {pending.fixed_expenses.map((exp, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, paddingBottom: 8, marginBottom: 8, borderBottom: i < pending.fixed_expenses.length - 1 ? '1px solid #e2e2de' : 'none' }}>
+                  <div style={{ flex: 1, minWidth: 0, paddingRight: 12 }}>
+                    <div style={{ fontWeight: 500 }}>{exp.name}</div>
+                    <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>{exp.category}{exp.variance_notes ? ' · ' + exp.variance_notes : ''}</div>
                   </div>
-                ))}
-              </div>
+                  <span style={{ color: '#dc2626', fontWeight: 600, whiteSpace: 'nowrap' }}>-{fmt(exp.amount)}</span>
+                </div>
+              ))}
             </div>
           )}
 
           {pending.debts?.length > 0 && (
-            <div className="mb-4">
-              <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">Deudas</div>
-              <div className="border border-gray-100 rounded-2xl divide-y divide-gray-50">
-                {pending.debts.map((d, i) => (
-                  <div key={i} className="p-4">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1 min-w-0 pr-3">
-                        <div className="text-sm font-medium">{d.name}</div>
-                        <div className="text-xs text-gray-500 mt-0.5">{d.institution}{d.months_remaining ? ` · ${d.months_remaining} cuotas` : ''}</div>
-                        <div className="text-xs text-gray-400">Pendiente: {fmt2(d.total_amount)}</div>
-                      </div>
-                      <span className="text-sm font-semibold text-red-500 whitespace-nowrap">-{fmt2(d.monthly_payment)}/mes</span>
-                    </div>
+            <div className="card">
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Deudas activas</div>
+              {pending.debts.map((d, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, paddingBottom: 8, marginBottom: 8, borderBottom: i < pending.debts.length - 1 ? '1px solid #e2e2de' : 'none' }}>
+                  <div style={{ flex: 1, minWidth: 0, paddingRight: 12 }}>
+                    <div style={{ fontWeight: 500 }}>{d.name}</div>
+                    <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>{d.institution}{d.months_remaining ? ` · ${d.months_remaining} cuotas` : ''}{d.interest_rate ? ` · ${d.interest_rate}%` : ''}</div>
+                    <div style={{ fontSize: 11, color: '#aaa' }}>Total pendiente: {fmt(d.total_amount)}</div>
                   </div>
-                ))}
-              </div>
+                  <span style={{ color: '#dc2626', fontWeight: 600, whiteSpace: 'nowrap' }}>-{fmt(d.monthly_payment)}/mes</span>
+                </div>
+              ))}
             </div>
           )}
 
-          <div className="border border-gray-100 rounded-2xl p-4 mb-6">
-            <div className="flex justify-between text-sm mb-2"><span className="text-gray-500">Ingresos fijos / mes</span><span className="text-green-600 font-medium">+{fmt2(tInc)}</span></div>
-            <div className="flex justify-between text-sm mb-3"><span className="text-gray-500">Gastos fijos / mes</span><span className="text-red-500 font-medium">-{fmt2(tExp)}</span></div>
-            <div className="flex justify-between text-sm pt-3 border-t border-gray-100">
-              <span className="font-medium">Disponible estimado</span>
-              <span className={`font-semibold ${net >= 0 ? 'text-green-600' : 'text-red-500'}`}>{net >= 0 ? '+' : ''}{fmt2(net)}</span>
+          <div className="card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 8 }}>
+              <span style={{ color: '#555' }}>Ingresos fijos / mes</span>
+              <span style={{ color: '#16a34a', fontWeight: 600 }}>+{fmt(tInc)}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 10 }}>
+              <span style={{ color: '#555' }}>Gastos fijos / mes</span>
+              <span style={{ color: '#dc2626', fontWeight: 600 }}>-{fmt(tExp)}</span>
+            </div>
+            <hr className="divider" style={{ margin: '8px 0 10px' }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 700 }}>
+              <span>Disponible estimado / mes</span>
+              <span style={{ color: tInc - tExp >= 0 ? '#16a34a' : '#dc2626' }}>{fmt(tInc - tExp)}</span>
             </div>
           </div>
+
           <div ref={bottomRef} />
         </div>
 
-        <div className="border-t border-gray-100 p-4 flex gap-3 safe-bottom">
-          <button onClick={() => setConfirming(false)} className="flex-1 py-3 border border-gray-200 rounded-xl text-sm font-medium">
-            Corregir algo
-          </button>
-          <button onClick={handleConfirm} disabled={saving} className="flex-1 py-3 bg-black text-white rounded-xl text-sm font-medium disabled:opacity-50">
+        <div style={{ borderTop: '1px solid #e2e2de', padding: '12px 16px', display: 'flex', gap: 10, background: '#fff' }} className="safe-bottom">
+          <button onClick={() => setConfirming(false)} className="btn-secondary" style={{ flex: 1 }}>Corregir algo</button>
+          <button onClick={handleConfirm} disabled={saving} className="btn-primary" style={{ flex: 1 }}>
             {saving ? 'Guardando...' : 'Confirmar →'}
           </button>
         </div>
@@ -228,42 +308,37 @@ export default function Onboarding({ onComplete }: Props) {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-white">
-      <div className="px-4 pt-5 pb-2">
-        <div className="text-lg font-semibold">Configuración inicial</div>
-        <div className="text-xs text-gray-400 mt-0.5">Cuéntame tu situación financiera</div>
-        <div className="mt-3 h-1 bg-gray-100 rounded-full overflow-hidden">
-          <div className="h-full bg-black rounded-full transition-all duration-500" style={{ width: progress + '%' }} />
+    <div className="flex flex-col h-screen" style={{ background: '#f0f0ed' }}>
+      <div style={{ padding: '20px 16px 8px', background: '#fff', borderBottom: '1px solid #e2e2de' }}>
+        <div style={{ fontSize: 17, fontWeight: 600 }}>Configuración inicial</div>
+        <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>Cuéntame tu situación financiera en detalle</div>
+        <div style={{ marginTop: 10, height: 3, background: '#e2e2de', borderRadius: 4, overflow: 'hidden' }}>
+          <div style={{ height: '100%', background: '#1a1a1a', borderRadius: 4, width: progress + '%', transition: 'width 0.5s' }} />
         </div>
       </div>
 
-      <div className="flex-1 scrollable px-4 py-3">
+      <div className="flex-1 scrollable" style={{ padding: '12px 16px' }}>
         {msgs.map((m, i) => (
-          <div key={i} className={`flex mb-3 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[80%] px-4 py-3 text-sm leading-relaxed ${m.role === 'user' ? 'bubble-user' : m.role === 'err' ? 'bubble-err' : 'bubble-ai'}`}>
+          <div key={i} style={{ display: 'flex', marginBottom: 10, justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
+            <div className={m.role === 'user' ? 'bubble-user' : m.role === 'err' ? 'bubble-err' : 'bubble-ai'}
+              style={{ maxWidth: '82%', padding: '10px 14px', fontSize: 14, lineHeight: 1.55 }}>
               {m.text.split('\n').map((line, j) => <span key={j}>{line}{j < m.text.split('\n').length - 1 && <br />}</span>)}
             </div>
           </div>
         ))}
         {sending && (
-          <div className="flex justify-start mb-3">
-            <div className="bubble-ai px-4 py-3 text-sm text-gray-400">Pensando...</div>
+          <div style={{ display: 'flex', marginBottom: 10 }}>
+            <div className="bubble-ai" style={{ padding: '10px 14px', fontSize: 14, color: '#888' }}>Pensando...</div>
           </div>
         )}
         <div ref={bottomRef} />
       </div>
 
-      <div className="border-t border-gray-100 p-3 safe-bottom flex gap-2">
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && send()}
-          placeholder="Escribe aquí..."
-          className="flex-1 px-4 py-3 bg-gray-50 rounded-xl text-sm outline-none"
-        />
-        <button onClick={send} disabled={sending || !input.trim()} className="w-12 h-12 bg-black text-white rounded-xl flex items-center justify-center disabled:opacity-40 text-lg">
-          ↑
-        </button>
+      <div style={{ borderTop: '1px solid #e2e2de', padding: '10px 12px', display: 'flex', gap: 8, background: '#fff' }} className="safe-bottom">
+        <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()}
+          placeholder="Escribe aquí..." className="input-base" style={{ flex: 1 }} />
+        <button onClick={send} disabled={sending || !input.trim()} className="btn-primary"
+          style={{ width: 44, height: 44, padding: 0, borderRadius: 12, fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>↑</button>
       </div>
     </div>
   )
