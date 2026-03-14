@@ -24,7 +24,7 @@ export default function Auth() {
   }
 
   const verifyCode = async () => {
-    if (code.length < 6) { setError('El código tiene 6 dígitos'); return }
+    if (code.length < 4) { setError('El código tiene 6 dígitos'); return }
     setLoading(true); setError('')
     const { error: err } = await supabase.auth.verifyOtp({
       email,
@@ -77,13 +77,13 @@ export default function Auth() {
             <input
               type="number"
               value={code}
-              onChange={e => setCode(e.target.value.slice(0, 6))}
+              onChange={e => setCode(e.target.value.slice(0, 8))}
               onKeyDown={e => e.key === 'Enter' && verifyCode()}
               placeholder="000000"
               style={{ width: '100%', padding: '16px', border: '1.5px solid #e2e2de', borderRadius: 14, fontSize: 28, fontWeight: 700, letterSpacing: 12, textAlign: 'center', background: '#fff', color: '#1a1a1a', outline: 'none', fontFamily: 'inherit', marginBottom: 12 }}
             />
             {error && <div style={{ color: '#dc2626', fontSize: 13, marginBottom: 10, textAlign: 'center' }}>{error}</div>}
-            <button onClick={verifyCode} disabled={loading || code.length < 6}
+            <button onClick={verifyCode} disabled={loading || code.length < 4}
               style={{ width: '100%', padding: '14px', background: '#1a6ef5', color: '#fff', border: 'none', borderRadius: 14, fontSize: 16, fontWeight: 600, cursor: 'pointer', opacity: (loading || code.length < 6) ? 0.5 : 1, fontFamily: 'inherit' }}>
               {loading ? 'Verificando...' : 'Entrar'}
             </button>
