@@ -95,4 +95,4 @@ export interface Goal {
   created_at?: string
 }
 
-export type Tab = 'dashboard' | 'register' | 'fixed' | 'goals'
+export type Tab = 'dashboard' | 'register' | 'fixed' | 'goals' | 'adjust'

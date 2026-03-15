@@ -7,6 +7,7 @@ import Dashboard from './Dashboard'
 import Register from './Register'
 import Fixed from './Fixed'
 import Goals from './Goals'
+import Adjust from './Adjust'
 
 interface Props { userId: string }
 
@@ -15,6 +16,7 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'register', label: 'Registrar', icon: '＋' },
   { id: 'fixed', label: 'Fijos', icon: '↻' },
   { id: 'goals', label: 'Metas', icon: '◈' },
+  { id: 'adjust', label: 'Ajustar', icon: '✎' },
 ]
 
 export default function WalletApp({ userId }: Props) {
@@ -89,13 +91,11 @@ export default function WalletApp({ userId }: Props) {
     const mk = new Date().toISOString().substring(0, 7)
     const log = { ...(profile.monthly_log || {}) }
     if (!log[mk]) log[mk] = {}
-
     const existing = log[mk][`${type}_${idx}`]
     const existingEntry = existing && typeof existing !== 'boolean' ? existing : null
     const isCompletingPartial = !!(existingEntry?.partial_amount)
 
     if (opts.partial && !opts.complete) {
-      // Register partial payment
       log[mk][`${type}_${idx}`] = { paid: false, partial_amount: (existingEntry?.partial_amount || 0) + opts.partial, bank: opts.bank, payment_method: opts.method }
       await addTransaction({
         type: type === 'inc' ? 'income' : 'expense',
@@ -105,7 +105,6 @@ export default function WalletApp({ userId }: Props) {
         bank: opts.bank, payment_method: opts.method,
       })
     } else {
-      // Full payment or completing a partial
       log[mk][`${type}_${idx}`] = { paid: true, bank: opts.bank, payment_method: opts.method }
       const remaining = isCompletingPartial ? item.amount - (existingEntry?.partial_amount || 0) : item.amount
       const n = item.name.toLowerCase()
@@ -114,21 +113,19 @@ export default function WalletApp({ userId }: Props) {
         : (item as { category: string }).category
       await addTransaction({
         type: type === 'inc' ? 'income' : 'expense',
-        amount: remaining > 0 ? remaining : item.amount,
-        category: cat,
+        amount: remaining > 0 ? remaining : item.amount, category: cat,
         description: isCompletingPartial ? `(Completado) ${item.name}` : item.name,
         date: new Date().toISOString().split('T')[0],
         bank: opts.bank, payment_method: opts.method,
       })
     }
-
     await saveProfile({ ...profile, monthly_log: log })
   }
 
   if (loading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#f0f0ed' }}>
-        <div style={{ width: 32, height: 32, border: '2px solid #e2e2de', borderTopColor: '#1a1a1a', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+        <div style={{ width: 32, height: 32, border: '2px solid #e2e2de', borderTopColor: '#1a6ef5', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     )
@@ -161,9 +158,7 @@ export default function WalletApp({ userId }: Props) {
         )}
         {tab === 'register' && <Register profile={profile} onAdd={addTransaction} />}
         {tab === 'fixed' && (
-          <Fixed profile={profile}
-            onMarkFixed={handleMarkFixed}
-            onEditFixed={saveProfile} />
+          <Fixed profile={profile} onMarkFixed={handleMarkFixed} onEditFixed={saveProfile} />
         )}
         {tab === 'goals' && (
           <Goals goals={goals} onAdd={addGoal}
@@ -175,13 +170,18 @@ export default function WalletApp({ userId }: Props) {
             }}
             onDelete={deleteGoal} />
         )}
+        {tab === 'adjust' && (
+          <Adjust profile={profile} onSave={saveProfile} />
+        )}
       </div>
+
+      {/* Bottom nav — 5 tabs */}
       <nav style={{ borderTop: '1px solid #e2e2de', background: '#fff', paddingBottom: 'env(safe-area-inset-bottom)', flexShrink: 0 }}>
         <div style={{ display: 'flex' }}>
           {TABS.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
-              style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 4px', gap: 2, fontSize: 11, cursor: 'pointer', background: 'none', border: 'none', color: tab === t.id ? '#1a1a1a' : '#bbb', fontWeight: tab === t.id ? 700 : 400 }}>
-              <span style={{ fontSize: 18, lineHeight: 1 }}>{t.icon}</span>
+              style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '8px 2px', gap: 2, fontSize: 10, cursor: 'pointer', background: 'none', border: 'none', color: tab === t.id ? '#1a6ef5' : '#bbb', fontWeight: tab === t.id ? 700 : 400 }}>
+              <span style={{ fontSize: 16, lineHeight: 1 }}>{t.icon}</span>
               <span>{t.label}</span>
             </button>
           ))}
