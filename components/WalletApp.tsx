@@ -7,6 +7,7 @@ import Dashboard from './Dashboard'
 import Register from './Register'
 import Fixed from './Fixed'
 import Goals from './Goals'
+import { sanitizeProfile } from '@/lib/sanitize'
 import Adjust from './Adjust'
 
 interface Props { userId: string }
@@ -32,7 +33,7 @@ export default function WalletApp({ userId }: Props) {
       supabase.from('transactions').select('*').eq('user_id', userId).order('date', { ascending: false }).order('created_at', { ascending: false }),
       supabase.from('goals').select('*').eq('user_id', userId).order('created_at', { ascending: true }),
     ])
-    if (prof) setProfile(prof as Profile)
+    if (prof) setProfile(sanitizeProfile(prof as Profile))
     if (txns) setTransactions(txns as Transaction[])
     if (gls) setGoals(gls as Goal[])
     setLoading(false)
